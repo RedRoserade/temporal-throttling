@@ -10,6 +10,7 @@ A proof of concept/demo for delaying and throttling Temporal workflow executions
 ## Usage
 
 - Start a Temporal server (e.g., `temporal server start-dev`)
+- Start a Redis instance listening on `localhost:6379`
 - Run the worker: `uv run -m temporal_throttling.worker`
 - Run the calling code: `uv run -m temporal_throttling.caller`
 
@@ -21,13 +22,15 @@ You can play around with the parameters in [caller.py](./temporal_throttling/cal
 
 ## How this works
 
+(You can see the logic in [caller.py](./temporal_throttling/caller.py).)
+
 The throttling is done by calculating the workflow IDs using time-based bucketing, and using collisions to our advantage. To ensure a monotonically-increasing ID, we use the UNIX timestamp, and calculate a bucket using the throttle rate:
 
 ```python
 time_bucket = ceil(time.time() * throttled_rps) / throttled_rps
 ```
 
-Assuming that `throttled_rps = 2`, for every second, the `time_bucket` will end in `.0` or `.5`. Any event in the timestamp `[0..0.5[` will be assigned bucket `.5` and any event with timestamp `[0.5..1[` will be assigned bucket `.1`.
+Assuming that `throttled_rps = 2`, for every second, the `time_bucket` will end in `.0` or `.5`. Any event in the timestamp `[0..0.5[` will be assigned bucket `.5` and any event with timestamp `[0.5..1[` will be assigned bucket `.0` of the next second.
 
 If we combine this with some base ID, then we will get something in the format: `{base_id}_{time_bucket}`:
 
