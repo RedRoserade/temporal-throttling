@@ -4,8 +4,9 @@ A proof of concept/demo for delaying and throttling Temporal workflow executions
 
 ## Requirements
 
+- uv (for installing packages and creating the virtualenv)
 - Temporal server (for running the workflows and activities)
-- Redis (for some shared state)
+- Redis (for some shared state).
 
 ## Usage
 
@@ -59,3 +60,10 @@ Using only bucketing can cause events to be lost, depending on factors such as:
 Therefore, this is not ideal if the last event of a sequence must be considered at all times (for that, debouncing is required, not throttling), but for activities that work on the _current state_ of some object, this can work, but a delay is essential.
 
 This delay (in seconds) must be greater than or equal to the size of the bucket. Since the bucket's size (in seconds) is `1 / throttled_rps`, this means that, if `throttled_rps = 2`, then `delay >= (1 / 2)` or, `delay >= 0.5`.
+
+## Alternatives
+
+I created two alternative ways to use this. Both focus on preventing API calls to schedule workflows.
+
+1. Query for existing workflows, before scheduling a new one. This uses `Client#count_workflows`. It can be useful in scenarios where events are routed statelessly (e.g., an HTTP handler)
+2. Use a cache to store the last computed workflow ID given the base ID (key) and the calculated bucket (using the current UNIX timestamp). It is useful when the events for a given key are always routed to the same consumer (e.g., a Kafka consumer)
